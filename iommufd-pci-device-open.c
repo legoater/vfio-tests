@@ -1,3 +1,12 @@
+/*
+ * VFIO test suite
+ *
+ * Copyright (C) 2012-2025, Red Hat Inc.
+ * Copyright (C) 2023, Intel Corporation.
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2. See
+ * the COPYING file in the top-level directory.
+ */
 #include <errno.h>
 #include <libgen.h>
 #include <fcntl.h>
