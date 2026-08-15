@@ -23,6 +23,7 @@
 #include <dirent.h>
 
 #include <linux/iommufd.h>
+#include <linux/pci_regs.h>
 #include <linux/vfio.h>
 
 int verbose = -1;
@@ -174,6 +175,29 @@ unsigned int vfio_pci_vendor(const char *devname)
 	fscanf(f, "%x", &vendor);
 	fclose(f);
 	return vendor;
+}
+
+const char *pci_sysfs_attr(const char *devname, const char *attr,
+			   char *buf, size_t len)
+{
+	char path[PATH_MAX];
+	int fd, n;
+
+	snprintf(path, sizeof(path),
+		 "/sys/bus/pci/devices/%s/%s", devname, attr);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		snprintf(buf, len, "unknown");
+		return buf;
+	}
+	n = read(fd, buf, len - 1);
+	close(fd);
+	if (n <= 0) {
+		snprintf(buf, len, "unknown");
+		return buf;
+	}
+	buf[n - 1] = '\0';
+	return buf;
 }
 
 int vfio_device_iommufd_getfd(const char *devname)
@@ -496,6 +520,64 @@ int vfio_device_attach_iommu_type(const char *devname, int *container_out,
 {
 	return __vfio_device_attach(devname, container_out, device_out,
 				    group_out, iommu_type);
+}
+
+int pci_cfg_read8(int device, uint64_t cfg_offset, int offset, uint8_t *val)
+{
+	if (pread(device, val, 1, cfg_offset + offset) != 1) {
+		printf("config read8 at 0x%x failed: %s\n",
+		       offset, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int pci_cfg_read16(int device, uint64_t cfg_offset, int offset, uint16_t *val)
+{
+	if (pread(device, val, 2, cfg_offset + offset) != 2) {
+		printf("config read16 at 0x%x failed: %s\n",
+		       offset, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int pci_cfg_read32(int device, uint64_t cfg_offset, int offset, uint32_t *val)
+{
+	if (pread(device, val, 4, cfg_offset + offset) != 4) {
+		printf("config read32 at 0x%x failed: %s\n",
+		       offset, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val)
+{
+	if (pwrite(device, &val, 2, cfg_offset + offset) != 2) {
+		printf("config write16 at 0x%x failed: %s\n",
+		       offset, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int pci_find_cap(int device, uint64_t cfg_offset, uint8_t cap_id)
+{
+	uint8_t pos, id;
+
+	if (pci_cfg_read8(device, cfg_offset, PCI_CAPABILITY_LIST, &pos))
+		return 0;
+
+	while (pos) {
+		if (pci_cfg_read8(device, cfg_offset, pos + PCI_CAP_LIST_ID, &id))
+			return 0;
+		if (id == cap_id)
+			return pos;
+		if (pci_cfg_read8(device, cfg_offset, pos + PCI_CAP_LIST_NEXT, &pos))
+			return 0;
+	}
+	return 0;
 }
 
 #define ALIGN_UP(x, a)  (((x) + (a) - 1) & ~((a) - 1))

@@ -10,7 +10,8 @@ TEST_SRCS = \
 	vfio-pci-device-open.c \
 	vfio-pci-device-open-igd.c \
 	vfio-pci-device-open-sparse-mmap.c \
-	vfio-pci-hot-reset.c  \
+	vfio-pci-hot-reset.c \
+	vfio-pci-device-reset.c \
 	vfio-pci-device-dma-map.c \
 	vfio-pci-huge-fault-race.c \
 	iommufd-pci-device-open.c \

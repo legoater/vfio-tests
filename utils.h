@@ -11,6 +11,7 @@
 #define VFIO_TESTSUITE_UTILS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
 
 /*
@@ -50,9 +51,17 @@ int vfio_device_get_groupid(const char *devname);
 int vfio_group_open(int groupid, bool noiommu);
 long hugepages_free(void);
 unsigned int vfio_pci_vendor(const char *devname);
+const char *pci_sysfs_attr(const char *devname, const char *attr,
+			   char *buf, size_t len);
 
 void *mmap_align(void *addr, size_t length, int prot, int flags,
 		 int fd, off_t offset, size_t align);
+
+int pci_find_cap(int device, uint64_t cfg_offset, uint8_t cap_id);
+int pci_cfg_read8(int device, uint64_t cfg_offset, int offset, uint8_t *val);
+int pci_cfg_read16(int device, uint64_t cfg_offset, int offset, uint16_t *val);
+int pci_cfg_read32(int device, uint64_t cfg_offset, int offset, uint32_t *val);
+int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val);
 
 #define EXIT_SKIP 77
 

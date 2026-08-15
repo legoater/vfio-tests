@@ -12,6 +12,7 @@ vfio-pci-device-open
 vfio-pci-device-open-igd
 vfio-pci-device-open-sparse-mmap
 vfio-pci-hot-reset
+vfio-pci-device-reset
 iommufd-pci-device-open
 iommufd-dma-map-unmap
 iommufd-dmabuf

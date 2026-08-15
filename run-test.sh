@@ -102,6 +102,9 @@ run_test ./vfio-pci-bar-fault-timing $device
 run_test ./vfio-huge-guest-test -m /dev/hugepages -g 8 $device
 run_test ./vfio-pci-huge-fault-race $device
 
+# Device reset
+run_test ./vfio-pci-device-reset $device
+
 # Hot reset (PF only, VF auto-skips)
 run_test ./vfio-pci-hot-reset $device
 
