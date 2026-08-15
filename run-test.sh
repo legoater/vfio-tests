@@ -109,6 +109,9 @@ run_test ./vfio-pci-huge-fault-race $device
 # Device reset
 run_test ./vfio-pci-device-reset $device
 
+# Config space access
+run_test ./vfio-pci-device-config-access $device
+
 # Hot reset (PF only, VF auto-skips)
 run_test ./vfio-pci-hot-reset $device
 
