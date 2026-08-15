@@ -47,6 +47,7 @@ Set `VFIO_VERBOSE=1` for detailed output.
 | `vfio-pci-huge-fault-race` | Race test for huge page BAR mmap faults (legacy group) |
 | `vfio-pci-hot-reset` | PCI hot reset via VFIO (legacy group) |
 | `vfio-pci-device-reset` | PCI device reset (FLR) via VFIO (legacy group) |
+| `vfio-pci-device-irq-setup` | PCI IRQ setup test: INTx, MSI, MSI-X, ERR, REQ (legacy group) |
 | `vfio-pci-device-config-access` | PCI config space access: header, capabilities, write/readback |
 | `vfio-pci-device-migration` | Query device migration and dirty tracking capabilities |
 | `vfio-pci-device-migration-stress` | Migration state cycle stress test (iommufd) |

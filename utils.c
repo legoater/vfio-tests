@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <poll.h>
+#include <sys/eventfd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -678,6 +680,91 @@ int vfio_dev_dump_iova_ranges(struct vfio_dev *dev)
 		       (uint64_t)iovars[i].start, (uint64_t)iovars[i].last);
 
 	free(iovars);
+	return 0;
+}
+
+/*
+ * VFIO PCI IRQ helpers
+ */
+
+int vfio_pci_irq_set_eventfd(int device, int index, int start, int count,
+			     int *fds)
+{
+	struct {
+		struct vfio_irq_set set;
+		int32_t data[VFIO_PCI_IRQ_MAX_VECTORS];
+	} irq = {
+		.set.argsz = sizeof(struct vfio_irq_set) +
+			     count * sizeof(int32_t),
+		.set.flags = VFIO_IRQ_SET_DATA_EVENTFD |
+			     VFIO_IRQ_SET_ACTION_TRIGGER,
+		.set.index = index,
+		.set.start = start,
+		.set.count = count,
+	};
+	int i;
+
+	if (count > VFIO_PCI_IRQ_MAX_VECTORS)
+		return -1;
+
+	for (i = 0; i < count; i++)
+		irq.data[i] = fds[i];
+
+	return ioctl(device, VFIO_DEVICE_SET_IRQS, &irq);
+}
+
+int vfio_pci_irq_trigger(int device, int index, int start, int count)
+{
+	struct vfio_irq_set irq = {
+		.argsz = sizeof(irq),
+		.flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_TRIGGER,
+		.index = index,
+		.start = start,
+		.count = count,
+	};
+
+	return ioctl(device, VFIO_DEVICE_SET_IRQS, &irq);
+}
+
+int vfio_pci_irq_unmask(int device, int index, int start, int count)
+{
+	struct vfio_irq_set irq = {
+		.argsz = sizeof(irq),
+		.flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_UNMASK,
+		.index = index,
+		.start = start,
+		.count = count,
+	};
+
+	return ioctl(device, VFIO_DEVICE_SET_IRQS, &irq);
+}
+
+int vfio_pci_irq_disable(int device, int index)
+{
+	struct vfio_irq_set irq = {
+		.argsz = sizeof(irq),
+		.flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_TRIGGER,
+		.index = index,
+		.start = 0,
+		.count = 0,
+	};
+
+	return ioctl(device, VFIO_DEVICE_SET_IRQS, &irq);
+}
+
+int eventfd_check(int fd, int timeout_ms)
+{
+	struct pollfd pfd = { .fd = fd, .events = POLLIN };
+	uint64_t val;
+	int ret;
+
+	ret = poll(&pfd, 1, timeout_ms);
+	if (ret <= 0)
+		return -1;
+
+	if (read(fd, &val, sizeof(val)) != sizeof(val))
+		return -1;
+
 	return 0;
 }
 

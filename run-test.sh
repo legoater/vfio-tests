@@ -109,6 +109,9 @@ run_test ./vfio-pci-huge-fault-race $device
 # Device reset
 run_test ./vfio-pci-device-reset $device
 
+# IRQ setup
+run_test ./vfio-pci-device-irq-setup $device
+
 # Config space access
 run_test ./vfio-pci-device-config-access $device
 

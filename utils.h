@@ -118,6 +118,18 @@ struct vfio_device_feature_dma_buf {
 };
 #endif
 
+/*
+ * VFIO PCI IRQ helpers (work with raw device fd)
+ */
+#define VFIO_PCI_IRQ_MAX_VECTORS 32
+
+int vfio_pci_irq_set_eventfd(int device, int index, int start, int count,
+			     int *fds);
+int vfio_pci_irq_trigger(int device, int index, int start, int count);
+int vfio_pci_irq_unmask(int device, int index, int start, int count);
+int vfio_pci_irq_disable(int device, int index);
+int eventfd_check(int fd, int timeout_ms);
+
 int vfio_dev_probe_dmabuf(struct vfio_dev *dev);
 int vfio_dev_export_bar_dmabuf(struct vfio_dev *dev, int bar_index,
 			       uint64_t length);
