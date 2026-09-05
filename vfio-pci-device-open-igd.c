@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 	       device_info.num_regions, device_info.num_irqs);
 
 	for (i = 0; i < device_info.num_regions; i++) {
-		unsigned long config_offset;
+		unsigned long config_offset = 0;
 		char sig[17];
 		unsigned size, tmp;
 
