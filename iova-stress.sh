@@ -28,12 +28,16 @@ echo "IOVA stress: ${IOVA_TB}TB range, 2MB stride, map_size=${MAP_SIZE_MB}MB, ${
 echo
 
 DMA_LIMIT=/sys/module/vfio_iommu_type1/parameters/dma_entry_limit
-SAVED_LIMIT=$(cat "$DMA_LIMIT")
 
 echo "=== legacy container ==="
-echo "$NR_CHUNKS" > "$DMA_LIMIT"
-time ./vfio-iommu-map-unmap -s "$MAP_SIZE_MB" -c 1 -S 2048 "$BDF"
-echo "$SAVED_LIMIT" > "$DMA_LIMIT"
+if [ -f "$DMA_LIMIT" ]; then
+	SAVED_LIMIT=$(cat "$DMA_LIMIT")
+	echo "$NR_CHUNKS" > "$DMA_LIMIT"
+	time ./vfio-iommu-map-unmap -s "$MAP_SIZE_MB" -c 1 -S 2048 "$BDF"
+	echo "$SAVED_LIMIT" > "$DMA_LIMIT"
+else
+	echo "skipped (vfio_iommu_type1 not loaded)"
+fi
 echo
 
 echo "=== iommufd ==="
