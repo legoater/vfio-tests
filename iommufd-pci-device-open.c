@@ -112,9 +112,15 @@ int main(int argc, char **argv)
             .ioas_id = ioas_id,
             .iova = 0,
             .length = 1024 * 1024,
-            .user_va = (uintptr_t)mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS, 0, 0),
+            .user_va = 0,
         };
+        void *p = mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+        if (p == MAP_FAILED) {
+                printf("Failed to mmap DMA buffer\n");
+                return 1;
+        }
+        map.user_va = (uintptr_t)p;
 
         ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);
         if (ret < 0) {
@@ -215,6 +221,10 @@ int main(int argc, char **argv)
 
         /* Use zero length array for hot reset with iommufd backend */
         reset = malloc(sizeof(*reset));
+        if (!reset) {
+                printf("Failed to allocate reset struct\n");
+                return 1;
+        }
         reset->argsz = sizeof(*reset);
 
         /* Bus reset! */

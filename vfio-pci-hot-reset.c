@@ -170,6 +170,10 @@ int main(int argc, char **argv)
 	fflush(stdout);
 
 	reset = malloc(sizeof(*reset) + nr_groups * sizeof(int));
+	if (!reset) {
+		printf("Failed to allocate reset struct\n");
+		return -1;
+	}
 	reset->argsz = sizeof(*reset) + nr_groups * sizeof(int);
 	reset->count = nr_groups;
 	reset->flags = 0;

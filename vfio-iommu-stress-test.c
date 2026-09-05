@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 
 	vaddr = (unsigned long)mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE,
 				    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	if (!vaddr) {
+	if (vaddr == (unsigned long)MAP_FAILED) {
 		printf("Failed to allocate memory\n");
 		return -1;
 	}
