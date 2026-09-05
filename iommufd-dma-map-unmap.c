@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -138,7 +139,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			map.user_va = (__u64)maps[i];
+			map.user_va = (uintptr_t)maps[i];
 			map.iova = i * stride;
 
 			ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);
@@ -195,7 +196,7 @@ int main(int argc, char **argv)
 
 	/* Final pass: map everything, then bulk unmap */
 	for (i = 0; i < nr_chunks; i++) {
-		map.user_va = (__u64)maps[i];
+		map.user_va = (uintptr_t)maps[i];
 		map.iova = i * stride;
 
 		ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);

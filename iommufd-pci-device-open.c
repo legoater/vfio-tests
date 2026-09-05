@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -111,7 +112,7 @@ int main(int argc, char **argv)
             .ioas_id = ioas_id,
             .iova = 0,
             .length = 1024 * 1024,
-            .user_va = (__u64)mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
+            .user_va = (uintptr_t)mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0),
         };
 

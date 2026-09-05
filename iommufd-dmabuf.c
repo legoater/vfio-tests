@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,8 +27,8 @@
 #define VFIO_DEVICE_FEATURE_DMA_BUF 11
 
 struct vfio_region_dma_range {
-	__u64 offset;
-	__u64 length;
+	uint64_t offset;
+	uint64_t length;
 };
 
 struct vfio_device_feature_dma_buf {
@@ -39,7 +40,7 @@ struct vfio_device_feature_dma_buf {
 };
 #endif
 
-static int try_dmabuf_export(int device, int region_index, __u64 length)
+static int try_dmabuf_export(int device, int region_index, uint64_t length)
 {
 	struct {
 		struct vfio_device_feature hdr;

@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +53,7 @@ static void do_map_unmap(int container, int device,
 	}
 
 	dma_map.argsz = sizeof(dma_map);
-	dma_map.vaddr = (__u64)map;
+	dma_map.vaddr = (uintptr_t)map;
 	dma_map.size = dma_size;
 	dma_map.iova = iova_base;
 	dma_map.flags = VFIO_DMA_MAP_FLAG_READ;
