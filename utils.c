@@ -397,7 +397,7 @@ static int vfio_group_set_container(int group, int container, int iommu_type)
 		    VFIO_TYPE1_IOMMU : VFIO_NOIOMMU_IOMMU);
 	if (!ret) {
 		printf("Incorrectly allowed %s-iommu usage!\n", noiommu ?
-		       "no" : "type1");
+		       "type1" : "no");
 		return -1;
 	}
 
