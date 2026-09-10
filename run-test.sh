@@ -79,6 +79,8 @@ run_test ./vfio-pci-device-open-sparse-mmap $device
 run_test ./vfio-pci-device-open-igd $device
 run_test ./vfio-noiommu-pci-device-open $device
 
+run_test ./vfio-pci-vf-token $device
+
 # Device open (iommufd cdev API)
 run_test ./iommufd-pci-device-open $device
 
@@ -87,6 +89,8 @@ run_test ./iommufd-dma-map-unmap $device
 
 # DMA-BUF export (iommufd)
 run_test ./iommufd-dmabuf $device
+
+run_test ./iommufd-pci-vf-token $device
 
 # DMA mapping
 run_test ./vfio-pci-device-dma-map $device

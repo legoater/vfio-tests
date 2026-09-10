@@ -14,9 +14,11 @@ TEST_SRCS = \
 	vfio-pci-device-reset.c \
 	vfio-pci-device-dma-map.c \
 	vfio-pci-huge-fault-race.c \
+	vfio-pci-vf-token.c \
 	iommufd-pci-device-open.c \
 	iommufd-dma-map-unmap.c \
 	iommufd-dmabuf.c \
+	iommufd-pci-vf-token.c \
 	vfio-pci-device-migration.c \
 	vfio-pci-device-migration-stress.c \
 	vfio-pci-device-map-alignment.c \
@@ -46,6 +48,10 @@ bar-conflict:
 
 %.o: %.c $(HEADERS) Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
+
+VF_TOKEN := $(shell uuidgen)
+vfio-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
+iommufd-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
 
 clean:
 	rm -f $(SHARED_OBJS) $(TEST_SRCS:.c=.o) $(TEST_BINS) $(ARCHIVE_BASE_NAME)*.tar.gz run-test.log

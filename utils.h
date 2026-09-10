@@ -26,8 +26,20 @@ int vfio_device_attach_iommu_type(const char *devname, int *container_out,
 				  int *device_out, int *group_out,
 				  int iommu_type);
 int vfio_device_iommufd_getfd(const char *devname);
-int vfio_device_iommufd_attach(int iommufd, const char *devname,
-			       int *device_out, int *ioas_id_out);
+int vfio_device_iommufd_attach_with_token(
+	int iommufd, const char *devname, int *device_out, int *ioas_id_out,
+	const char *token);
+static inline int vfio_device_iommufd_attach(int iommufd, const char *devname,
+					     int *device_out, int *ioas_id_out)
+{
+	return vfio_device_iommufd_attach_with_token(iommufd, devname,
+				     device_out, ioas_id_out, NULL);
+}
+
+#define VF_TOKEN_SIZE 16
+int parse_vf_token(const char *token, unsigned char bytes[VF_TOKEN_SIZE]);
+
+#define VF_TOKEN_BOGUS "00000000-0000-0000-0000-000000000001"
 
 #define NSEC_PER_SEC 1000000000ul
 #define USEC_PER_SEC 1000000ul

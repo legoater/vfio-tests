@@ -16,9 +16,11 @@ vfio-pci-device-reset
 iommufd-pci-device-open
 iommufd-dma-map-unmap
 iommufd-dmabuf
+iommufd-pci-vf-token
 vfio-pci-device-migration
 vfio-pci-device-migration-stress
 vfio-pci-device-map-alignment
 vfio-pci-bar-fault-timing
+vfio-pci-vf-token
 run-test.log
 .vscode

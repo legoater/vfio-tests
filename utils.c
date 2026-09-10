@@ -26,6 +26,8 @@
 #include <linux/pci_regs.h>
 #include <linux/vfio.h>
 
+#include "utils.h"
+
 int verbose = -1;
 
 static void __attribute__((constructor)) init_verbose(void)
@@ -46,6 +48,21 @@ void hexdump(const void *data, size_t len)
 		printf("%02x", p[i]);
 	}
 	printf("\n");
+}
+
+/* minimal, dependency-free replacement for uuid_parse() */
+int parse_vf_token(const char *token, unsigned char bytes[VF_TOKEN_SIZE])
+{
+	if (sscanf(token,
+		   "%2hhx%2hhx%2hhx%2hhx-%2hhx%2hhx-%2hhx%2hhx-"
+		   "%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+		   &bytes[0], &bytes[1], &bytes[2], &bytes[3],
+		   &bytes[4], &bytes[5], &bytes[6], &bytes[7],
+		   &bytes[8], &bytes[9], &bytes[10], &bytes[11],
+		   &bytes[12], &bytes[13], &bytes[14], &bytes[15]) != VF_TOKEN_SIZE)
+		return -1;
+
+	return 0;
 }
 
 int vfio_pci_is_vf(const char *devname)
@@ -249,8 +266,8 @@ int vfio_device_iommufd_getfd(const char *devname)
 	return ret;
 }
 
-int vfio_device_iommufd_attach(int iommufd, const char *devname,
-			       int *device_out, int *ioas_id_out)
+int vfio_device_iommufd_attach_with_token(int iommufd, const char *devname,
+			       int *device_out, int *ioas_id_out, const char *token)
 {
 	int device, ret;
 
@@ -268,6 +285,18 @@ int vfio_device_iommufd_attach(int iommufd, const char *devname,
 	device = vfio_device_iommufd_getfd(devname);
 	if (device < 0)
 		return -1;
+
+	if (token) {
+		unsigned char token_bytes[VF_TOKEN_SIZE];
+
+		if (parse_vf_token(token, token_bytes)) {
+			fprintf(stderr, "Invalid VF token: %s\n", token);
+			return -1;
+		}
+
+		bind.flags |= VFIO_DEVICE_BIND_FLAG_TOKEN;
+		bind.token_uuid_ptr = (uintptr_t)token_bytes;
+	}
 
 	ret = ioctl(device, VFIO_DEVICE_BIND_IOMMUFD, &bind);
 	if (ret < 0) {

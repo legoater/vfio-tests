@@ -31,10 +31,12 @@ Set `VFIO_VERBOSE=1` for detailed output.
 | `vfio-pci-device-open` | Open device, enumerate regions and IRQs (legacy group) |
 | `vfio-pci-device-open-sparse-mmap` | Open device, test sparse mmap regions (legacy group) |
 | `vfio-pci-device-open-igd` | Open Intel IGD device, read OpRegion (legacy group) |
+| `vfio-pci-vf-token`  | Open a VF using a VF token (legacy group) |
 | `vfio-noiommu-pci-device-open` | Open device in no-IOMMU mode (legacy group) |
 | `iommufd-pci-device-open` | Open device, enumerate regions, DMA map, hot reset (iommufd) |
 | `iommufd-dmabuf` | VFIO dma-buf BAR export and P2P mapping via iommufd |
 | `iommufd-dma-map-unmap` | DMA map/unmap stress test with 4KB chunks (iommufd) |
+| `iommufd-pci-vf-token`  | Open a VF using a VF token (iommufd) |
 | `vfio-pci-device-dma-map` | DMA map BAR regions and test high/low memory mappings |
 | `vfio-pci-device-map-alignment` | Test BAR mmap alignment at various power-of-2 sizes |
 | `vfio-pci-bar-fault-timing` | Measure BAR mmap page fault latency at PTE/PMD/PUD sizes |
