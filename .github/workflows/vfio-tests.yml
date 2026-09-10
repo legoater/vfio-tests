@@ -1,7 +1,7 @@
 name: VFIO Test Suite
 
 on:
-  workflow_dispatch:
+  push
 
 env:
   FEDORA_IMAGE_URL: "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2"
