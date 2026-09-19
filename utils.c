@@ -616,6 +616,8 @@ int pci_find_cap(int device, uint64_t cfg_offset, uint8_t cap_id)
 
 int vfio_dev_open(struct vfio_dev *dev, const char *bdf)
 {
+	dev->name = bdf;
+
 	dev->iommufd = open("/dev/iommu", O_RDWR);
 	if (dev->iommufd < 0) {
 		fprintf(stderr, "%s: open /dev/iommu: %s\n",
@@ -639,23 +641,25 @@ void vfio_dev_close(struct vfio_dev *dev)
 		close(dev->iommufd);
 }
 
-int vfio_dev_probe_dmabuf(int device_fd)
+int vfio_dev_probe_dmabuf(struct vfio_dev *dev)
 {
 	struct vfio_device_feature probe = {
 		.argsz = sizeof(probe),
 		.flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_DMA_BUF,
 	};
 
-	if (ioctl(device_fd, VFIO_DEVICE_FEATURE, &probe) < 0) {
-		fprintf(stderr, "DMA-BUF not supported (%s)\n", strerror(errno));
+	if (ioctl(dev->device_fd, VFIO_DEVICE_FEATURE, &probe) < 0) {
+		fprintf(stderr, "%s: DMA-BUF not supported (%s)\n",
+			dev->name, strerror(errno));
 		return -1;
 	}
 
-	printf("DMA-BUF feature supported\n");
+	printf("%s: DMA-BUF feature supported\n", dev->name);
 	return 0;
 }
 
-int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length)
+int vfio_dev_export_bar_dmabuf(struct vfio_dev *dev, int bar_index,
+			      uint64_t length)
 {
 	struct {
 		struct vfio_device_feature hdr;
@@ -678,15 +682,15 @@ int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length)
 	};
 	int fd;
 
-	fd = ioctl(device_fd, VFIO_DEVICE_FEATURE, &req);
+	fd = ioctl(dev->device_fd, VFIO_DEVICE_FEATURE, &req);
 	if (fd < 0) {
-		fprintf(stderr, "BAR%d dmabuf export failed (%s)\n",
-			bar_index, strerror(errno));
+		fprintf(stderr, "%s: BAR%d dmabuf export failed (%s)\n",
+			dev->name, bar_index, strerror(errno));
 		return -1;
 	}
 
-	printf("BAR%d exported as dmabuf fd %d (size 0x%" PRIx64 ")\n",
-	       bar_index, fd, length);
+	printf("%s: BAR%d exported as dmabuf fd %d (size 0x%" PRIx64 ")\n",
+	       dev->name, bar_index, fd, length);
 	return fd;
 }
 
@@ -709,8 +713,8 @@ int vfio_dev_map_dmabuf(struct vfio_dev *dev, int dmabuf_fd,
 
 	if (iova_out)
 		*iova_out = map_file.iova;
-	printf("dmabuf mapped at IOVA 0x%" PRIx64 " (size 0x%" PRIx64 ")\n",
-	       (uint64_t)map_file.iova, length);
+	printf("%s: dmabuf fd %d mapped at IOVA 0x%" PRIx64 " (size 0x%" PRIx64 ")\n",
+	       dev->name, dmabuf_fd, (uint64_t)map_file.iova, length);
 	return 0;
 }
 

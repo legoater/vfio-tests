@@ -23,21 +23,20 @@
 
 #include "utils.h"
 
-static int test_export_bars(int src_device, struct vfio_dev *dst,
-			    const char *src_name, const char *dst_name,
+static int test_export_bars(struct vfio_dev *src, struct vfio_dev *dst,
 			    int bar_conflict)
 {
 	struct vfio_region_info region_info = { .argsz = sizeof(region_info) };
 	int i, ret;
 
 	printf("\nExporting %s BARs as dma-buf, mapping into %s ioas %d\n\n",
-	       src_name, dst_name ? dst_name : src_name, dst->ioas_id);
+	       src->name, dst->name, dst->ioas_id);
 
 	for (i = 0; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
 		int dmabuf_fd;
 
 		region_info.index = i;
-		ret = ioctl(src_device, VFIO_DEVICE_GET_REGION_INFO,
+		ret = ioctl(src->device_fd, VFIO_DEVICE_GET_REGION_INFO,
 			    &region_info);
 		if (ret)
 			continue;
@@ -50,7 +49,7 @@ static int test_export_bars(int src_device, struct vfio_dev *dst,
 		       i, (unsigned long)region_info.size,
 		       (unsigned long)region_info.offset, region_info.flags);
 
-		dmabuf_fd = vfio_dev_export_bar_dmabuf(src_device, i,
+		dmabuf_fd = vfio_dev_export_bar_dmabuf(src, i,
 						       region_info.size);
 		if (dmabuf_fd < 0) {
 			if (i == bar_conflict) {
@@ -67,7 +66,7 @@ static int test_export_bars(int src_device, struct vfio_dev *dst,
 		}
 
 		void *map = mmap(NULL, (size_t)region_info.size,
-				 PROT_READ, MAP_SHARED, src_device,
+				 PROT_READ, MAP_SHARED, src->device_fd,
 				 (off_t)region_info.offset);
 		if (map == MAP_FAILED) {
 			printf("\tmmap failed (%s)\n", strerror(errno));
@@ -88,7 +87,7 @@ static int test_export_bars(int src_device, struct vfio_dev *dst,
 	return 0;
 }
 
-static int test_export_invalid_indices(int device)
+static int test_export_invalid_indices(struct vfio_dev *dev)
 {
 	int invalid_indices[] = {
 		VFIO_PCI_ROM_REGION_INDEX,
@@ -102,7 +101,7 @@ static int test_export_invalid_indices(int device)
 	for (i = 0; i < (int)(sizeof(invalid_indices) / sizeof(invalid_indices[0])); i++) {
 		printf("Region index %d (out of range)\n", invalid_indices[i]);
 
-		ret = vfio_dev_export_bar_dmabuf(device, invalid_indices[i], 4096);
+		ret = vfio_dev_export_bar_dmabuf(dev, invalid_indices[i], 4096);
 		if (ret >= 0) {
 			printf("\t[FAIL] dma-buf export should have been rejected\n");
 			close(ret);
@@ -158,10 +157,11 @@ int main(int argc, char **argv)
 	if (vfio_dev_open(&src, src_name))
 		return 1;
 
-	if (vfio_dev_probe_dmabuf(src.device_fd))
+	if (vfio_dev_probe_dmabuf(&src))
 		return EXIT_SKIP;
 
 	if (dst_name) {
+		dst.name = dst_name;
 		dst.iommufd = src.iommufd;
 		if (vfio_device_iommufd_attach(src.iommufd, dst_name,
 					       &dst.device_fd, &dst.ioas_id))
@@ -176,12 +176,11 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	ret = test_export_bars(src.device_fd, &dst, src_name, dst_name,
-			       bar_conflict);
+	ret = test_export_bars(&src, &dst, bar_conflict);
 	if (ret)
 		return ret;
 
-	ret = test_export_invalid_indices(src.device_fd);
+	ret = test_export_invalid_indices(&src);
 	if (ret)
 		return ret;
 

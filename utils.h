@@ -86,6 +86,7 @@ int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val);
  * VFIO PCI device abstraction (IOMMUFD cdev path)
  */
 struct vfio_dev {
+	const char *name;
 	int device_fd;
 	int iommufd;
 	int ioas_id;
@@ -116,8 +117,9 @@ struct vfio_device_feature_dma_buf {
 };
 #endif
 
-int vfio_dev_probe_dmabuf(int device_fd);
-int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length);
+int vfio_dev_probe_dmabuf(struct vfio_dev *dev);
+int vfio_dev_export_bar_dmabuf(struct vfio_dev *dev, int bar_index,
+			       uint64_t length);
 int vfio_dev_map_dmabuf(struct vfio_dev *dev, int dmabuf_fd,
 			uint64_t length, uint64_t *iova_out);
 
