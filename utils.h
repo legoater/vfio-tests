@@ -82,6 +82,43 @@ int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val);
 #define NSEC_PER_MSEC (NSEC_PER_SEC / 1000)
 #define USEC_PER_MSEC (USEC_PER_SEC / 1000)
 
+/*
+ * VFIO PCI device abstraction (IOMMUFD cdev path)
+ */
+struct vfio_dev {
+	int device_fd;
+	int iommufd;
+	int ioas_id;
+};
+
+#define VFIO_DEV_INIT { .device_fd = -1, .iommufd = -1 }
+
+int vfio_dev_open(struct vfio_dev *dev, const char *bdf);
+void vfio_dev_close(struct vfio_dev *dev);
+
+/*
+ * VFIO DMA-BUF BAR export (IOMMUFD)
+ */
+#ifndef VFIO_DEVICE_FEATURE_DMA_BUF
+#define VFIO_DEVICE_FEATURE_DMA_BUF 11
+
+struct vfio_region_dma_range {
+	uint64_t offset;
+	uint64_t length;
+};
+
+struct vfio_device_feature_dma_buf {
+	uint32_t region_index;
+	uint32_t open_flags;
+	uint32_t flags;
+	uint32_t nr_ranges;
+	struct vfio_region_dma_range dma_ranges[];
+};
+#endif
+
+int vfio_dev_probe_dmabuf(int device_fd);
+int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length);
+
 static inline const char *size_str(unsigned long size, char *buf, size_t len)
 {
 	if (size >= (1ul << 40) && !(size & ((1ul << 40) - 1)))

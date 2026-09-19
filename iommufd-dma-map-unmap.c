@@ -38,7 +38,8 @@ void usage(char *name)
 int main(int argc, char **argv)
 {
 	const char *devname;
-	int opt, ret, device, iommufd, ioas_id;
+	int opt, ret;
+	struct vfio_dev dev = VFIO_DEV_INIT;
 	unsigned long i, count, map_size, max_cycles, nr_chunks, stride;
 	long slab_before, slab_delta = 0;
 	void **maps;
@@ -88,13 +89,7 @@ int main(int argc, char **argv)
 	}
 	nr_chunks = map_size / MAP_CHUNK;
 
-	iommufd = open("/dev/iommu", O_RDWR);
-	if (iommufd < 0) {
-		printf("Failed to open /dev/iommu: %s\n", strerror(errno));
-		return 1;
-	}
-
-	if (vfio_device_iommufd_attach(iommufd, devname, &device, &ioas_id))
+	if (vfio_dev_open(&dev, devname))
 		return 1;
 
 	char range_buf[16];
@@ -112,10 +107,10 @@ int main(int argc, char **argv)
 	}
 	memset(maps, 0, sizeof(void *) * nr_chunks);
 
-	map.ioas_id = ioas_id;
+	map.ioas_id = dev.ioas_id;
 	map.length = MAP_CHUNK;
 
-	unmap.ioas_id = ioas_id;
+	unmap.ioas_id = dev.ioas_id;
 
 	for (count = 0; count < max_cycles; count++) {
 
@@ -142,7 +137,7 @@ int main(int argc, char **argv)
 			map.user_va = (uintptr_t)maps[i];
 			map.iova = i * stride;
 
-			ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);
+			ret = ioctl(dev.iommufd, IOMMU_IOAS_MAP, &map);
 			if (ret) {
 				if (errno == EINVAL && stride > MAP_CHUNK)
 					continue;
@@ -171,7 +166,7 @@ int main(int argc, char **argv)
 			unmap.iova = i * stride;
 			unmap.length = MAP_CHUNK;
 
-			ret = ioctl(iommufd, IOMMU_IOAS_UNMAP, &unmap);
+			ret = ioctl(dev.iommufd, IOMMU_IOAS_UNMAP, &unmap);
 			if (ret && errno != ENOENT) {
 				printf("IOMMU_IOAS_UNMAP iova=0x%lx failed: %s\n",
 				       i * stride, strerror(errno));
@@ -199,7 +194,7 @@ int main(int argc, char **argv)
 		map.user_va = (uintptr_t)maps[i];
 		map.iova = i * stride;
 
-		ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);
+		ret = ioctl(dev.iommufd, IOMMU_IOAS_MAP, &map);
 		if (ret) {
 			if (errno == EINVAL && stride > MAP_CHUNK)
 				continue;
@@ -211,7 +206,7 @@ int main(int argc, char **argv)
 
 	unmap.iova = 0;
 	unmap.length = nr_chunks * stride;
-	ret = ioctl(iommufd, IOMMU_IOAS_UNMAP, &unmap);
+	ret = ioctl(dev.iommufd, IOMMU_IOAS_UNMAP, &unmap);
 	if (ret) {
 		printf("IOMMU_IOAS_UNMAP (bulk) failed: %s\n", strerror(errno));
 		return 1;

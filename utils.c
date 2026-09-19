@@ -8,6 +8,7 @@
  */
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -607,6 +608,86 @@ int pci_find_cap(int device, uint64_t cfg_offset, uint8_t cap_id)
 			return 0;
 	}
 	return 0;
+}
+
+/*
+ * VFIO PCI device abstraction (IOMMUFD cdev path)
+ */
+
+int vfio_dev_open(struct vfio_dev *dev, const char *bdf)
+{
+	dev->iommufd = open("/dev/iommu", O_RDWR);
+	if (dev->iommufd < 0) {
+		fprintf(stderr, "%s: open /dev/iommu: %s\n",
+			__func__, strerror(errno));
+		return -1;
+	}
+
+	if (vfio_device_iommufd_attach(dev->iommufd, bdf,
+				       &dev->device_fd, &dev->ioas_id))
+		return -1;
+
+	return 0;
+}
+
+void vfio_dev_close(struct vfio_dev *dev)
+{
+	if (dev->device_fd >= 0)
+		close(dev->device_fd);
+
+	if (dev->iommufd >= 0)
+		close(dev->iommufd);
+}
+
+int vfio_dev_probe_dmabuf(int device_fd)
+{
+	struct vfio_device_feature probe = {
+		.argsz = sizeof(probe),
+		.flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_DMA_BUF,
+	};
+
+	if (ioctl(device_fd, VFIO_DEVICE_FEATURE, &probe) < 0) {
+		fprintf(stderr, "DMA-BUF not supported (%s)\n", strerror(errno));
+		return -1;
+	}
+
+	printf("DMA-BUF feature supported\n");
+	return 0;
+}
+
+int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length)
+{
+	struct {
+		struct vfio_device_feature hdr;
+		struct vfio_device_feature_dma_buf dma_buf;
+		struct vfio_region_dma_range range;
+	} req = {
+		.hdr = {
+			.argsz = sizeof(req),
+			.flags = VFIO_DEVICE_FEATURE_GET |
+				 VFIO_DEVICE_FEATURE_DMA_BUF,
+		},
+		.dma_buf = {
+			.region_index = bar_index,
+			.open_flags = O_RDWR,
+			.nr_ranges = 1,
+		},
+		.range = {
+			.length = length,
+		},
+	};
+	int fd;
+
+	fd = ioctl(device_fd, VFIO_DEVICE_FEATURE, &req);
+	if (fd < 0) {
+		fprintf(stderr, "BAR%d dmabuf export failed (%s)\n",
+			bar_index, strerror(errno));
+		return -1;
+	}
+
+	printf("BAR%d exported as dmabuf fd %d (size 0x%" PRIx64 ")\n",
+	       bar_index, fd, length);
+	return fd;
 }
 
 #define ALIGN_UP(x, a)  (((x) + (a) - 1) & ~((a) - 1))

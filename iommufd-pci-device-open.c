@@ -37,7 +37,8 @@ void usage(char *name)
 int main(int argc, char **argv)
 {
 	const char *devname;
-        int i, ret, device, iommufd, ioas_id;
+        int i, ret;
+        struct vfio_dev dev = VFIO_DEV_INIT;
 
         struct vfio_device_info device_info = {
                 .argsz = sizeof(device_info)
@@ -53,17 +54,10 @@ int main(int argc, char **argv)
 
 	devname = argv[1];
 
-        iommufd = open("/dev/iommu", O_RDWR);
-        if (iommufd < 0) {
-                printf("Failed to open /dev/iommu, %d (%s)\n",
-                       iommufd, strerror(errno));
-                return 1;
-        }
-
-        if (vfio_device_iommufd_attach(iommufd, devname, &device, &ioas_id))
+        if (vfio_dev_open(&dev, devname))
                 return 1;
 
-        if (ioctl(device, VFIO_DEVICE_GET_INFO, &device_info)) {
+        if (ioctl(dev.device_fd, VFIO_DEVICE_GET_INFO, &device_info)) {
                 printf("Failed to get device info\n");
                 return -1;
         }
@@ -74,7 +68,7 @@ int main(int argc, char **argv)
         for (i = 0; i < device_info.num_regions; i++) {
                 printf("Region %d: ", i);
                 region_info.index = i;
-                if (ioctl(device, VFIO_DEVICE_GET_REGION_INFO, &region_info)) {
+                if (ioctl(dev.device_fd, VFIO_DEVICE_GET_REGION_INFO, &region_info)) {
                         if (i == VFIO_PCI_VGA_REGION_INDEX &&
                             !vfio_pci_is_vga(devname)) {
                                 printf("not available (non-VGA device)\n");
@@ -89,7 +83,7 @@ int main(int argc, char **argv)
                        (unsigned long)region_info.offset, region_info.flags);
                 if (region_info.flags & VFIO_REGION_INFO_FLAG_MMAP) {
                         void *map = mmap(NULL, (size_t)region_info.size,
-                                         PROT_READ, MAP_SHARED, device,
+                                         PROT_READ, MAP_SHARED, dev.device_fd,
                                          (off_t)region_info.offset);
                         if (map == MAP_FAILED) {
                                 printf("mmap failed\n");
@@ -109,7 +103,7 @@ int main(int argc, char **argv)
             .flags = IOMMU_IOAS_MAP_READABLE |
                 IOMMU_IOAS_MAP_WRITEABLE |
                 IOMMU_IOAS_MAP_FIXED_IOVA,
-            .ioas_id = ioas_id,
+            .ioas_id = dev.ioas_id,
             .iova = 0,
             .length = 1024 * 1024,
             .user_va = 0,
@@ -122,7 +116,7 @@ int main(int argc, char **argv)
         }
         map.user_va = (uintptr_t)p;
 
-        ret = ioctl(iommufd, IOMMU_IOAS_MAP, &map);
+        ret = ioctl(dev.iommufd, IOMMU_IOAS_MAP, &map);
         if (ret < 0) {
                 printf("Failed IOMMU_IOAS_MAP ioas_id %d %d (%s)\n",
                        map.ioas_id, ret, strerror(errno));
@@ -148,7 +142,7 @@ int main(int argc, char **argv)
 
         reset_info->argsz = sizeof(*reset_info);
 
-        ret = ioctl(device, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, reset_info);
+        ret = ioctl(dev.device_fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, reset_info);
         if (ret && errno == ENODEV) {
                 printf("Device does not support hot reset\n");
                 return 0;
@@ -169,7 +163,7 @@ int main(int argc, char **argv)
 
         reset_info->argsz = sizeof(*reset_info) +
                 (reset_info->count * sizeof(*devices));
-        ret = ioctl(device, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, reset_info);
+        ret = ioctl(dev.device_fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, reset_info);
         if (ret) {
                 printf("Reset Info error\n");
                 return 1;
@@ -228,7 +222,7 @@ int main(int argc, char **argv)
         reset->argsz = sizeof(*reset);
 
         /* Bus reset! */
-        ret = ioctl(device, VFIO_DEVICE_PCI_HOT_RESET, reset);
+        ret = ioctl(dev.device_fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
         printf("Hot reset: %s\n", ret ? "Failed" : "Pass");
 
         return 0;

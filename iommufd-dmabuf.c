@@ -23,48 +23,6 @@
 
 #include "utils.h"
 
-#ifndef VFIO_DEVICE_FEATURE_DMA_BUF
-#define VFIO_DEVICE_FEATURE_DMA_BUF 11
-
-struct vfio_region_dma_range {
-	uint64_t offset;
-	uint64_t length;
-};
-
-struct vfio_device_feature_dma_buf {
-	uint32_t region_index;
-	uint32_t open_flags;
-	uint32_t flags;
-	uint32_t nr_ranges;
-	struct vfio_region_dma_range dma_ranges[];
-};
-#endif
-
-static int try_dmabuf_export(int device, int region_index, uint64_t length)
-{
-	struct {
-		struct vfio_device_feature hdr;
-		struct vfio_device_feature_dma_buf dma_buf;
-		struct vfio_region_dma_range range;
-	} dma_buf_feature = {
-		.hdr = {
-			.argsz = sizeof(dma_buf_feature),
-			.flags = VFIO_DEVICE_FEATURE_GET |
-				 VFIO_DEVICE_FEATURE_DMA_BUF,
-		},
-		.dma_buf = {
-			.region_index = region_index,
-			.open_flags = O_RDWR,
-			.nr_ranges = 1,
-		},
-		.range = {
-			.length = length,
-		},
-	};
-
-	return ioctl(device, VFIO_DEVICE_FEATURE, &dma_buf_feature);
-}
-
 static int test_export_bars(int src_device, int iommufd,
 			    const char *src_name, const char *dst_name,
 			    int dst_ioas, int bar_conflict)
@@ -92,14 +50,13 @@ static int test_export_bars(int src_device, int iommufd,
 		       i, (unsigned long)region_info.size,
 		       (unsigned long)region_info.offset, region_info.flags);
 
-		dmabuf_fd = try_dmabuf_export(src_device, i, region_info.size);
+		dmabuf_fd = vfio_dev_export_bar_dmabuf(src_device, i,
+						       region_info.size);
 		if (dmabuf_fd < 0) {
 			if (i == bar_conflict) {
-				printf("\t[PASS] dma-buf rejected (%s)\n",
-				       strerror(errno));
+				printf("\t[PASS] dma-buf rejected\n");
 				continue;
 			}
-			printf("\tdma-buf failed (%s)\n", strerror(errno));
 			continue;
 		}
 
@@ -108,8 +65,6 @@ static int test_export_bars(int src_device, int iommufd,
 			close(dmabuf_fd);
 			return -1;
 		}
-
-		printf("\texported as dma-buf fd %d\n", dmabuf_fd);
 
 		void *map = mmap(NULL, (size_t)region_info.size,
 				 PROT_READ, MAP_SHARED, src_device,
@@ -163,13 +118,13 @@ static int test_export_invalid_indices(int device)
 	for (i = 0; i < (int)(sizeof(invalid_indices) / sizeof(invalid_indices[0])); i++) {
 		printf("Region index %d (out of range)\n", invalid_indices[i]);
 
-		ret = try_dmabuf_export(device, invalid_indices[i], 4096);
+		ret = vfio_dev_export_bar_dmabuf(device, invalid_indices[i], 4096);
 		if (ret >= 0) {
 			printf("\t[FAIL] dma-buf export should have been rejected\n");
 			close(ret);
 			return -1;
 		}
-		printf("\t[PASS] rejected (%s)\n", strerror(errno));
+		printf("\t[PASS] rejected\n");
 	}
 
 	return 0;
@@ -188,8 +143,9 @@ void usage(char *name)
 int main(int argc, char **argv)
 {
 	const char *src_name, *dst_name = NULL;
-	int opt, src_device, dst_device, iommufd, ret;
-	int src_ioas, dst_ioas;
+	struct vfio_dev src = VFIO_DEV_INIT;
+	int opt, dst_device, ret;
+	int dst_ioas;
 	int bar_conflict = -1;
 	struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
 
@@ -215,54 +171,39 @@ int main(int argc, char **argv)
 
 	src_name = argv[optind];
 
-	iommufd = open("/dev/iommu", O_RDWR);
-	if (iommufd < 0) {
-		printf("Failed to open /dev/iommu, %d (%s)\n",
-		       iommufd, strerror(errno));
-		return 1;
-	}
-
-	if (vfio_device_iommufd_attach(iommufd, src_name, &src_device, &src_ioas))
+	if (vfio_dev_open(&src, src_name))
 		return 1;
 
-	struct vfio_device_feature probe = {
-		.argsz = sizeof(probe),
-		.flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_DMA_BUF,
-	};
-	ret = ioctl(src_device, VFIO_DEVICE_FEATURE, &probe);
-	if (ret < 0) {
-		printf("DMA-BUF not supported (%s)\n", strerror(errno));
+	if (vfio_dev_probe_dmabuf(src.device_fd))
 		return EXIT_SKIP;
-	}
 
 	if (dst_name) {
-		if (vfio_device_iommufd_attach(iommufd, dst_name, &dst_device,
-					  &dst_ioas))
+		if (vfio_device_iommufd_attach(src.iommufd, dst_name,
+					       &dst_device, &dst_ioas))
 			return 1;
 	} else {
-		dst_device = src_device;
-		dst_ioas = src_ioas;
+		dst_device = src.device_fd;
+		dst_ioas = src.ioas_id;
 	}
 
-	ret = ioctl(src_device, VFIO_DEVICE_GET_INFO, &device_info);
+	ret = ioctl(src.device_fd, VFIO_DEVICE_GET_INFO, &device_info);
 	if (ret) {
 		printf("Failed to get device info\n");
 		return -1;
 	}
 
-	ret = test_export_bars(src_device, iommufd, src_name, dst_name,
+	ret = test_export_bars(src.device_fd, src.iommufd, src_name, dst_name,
 			       dst_ioas, bar_conflict);
 	if (ret)
 		return ret;
 
-	ret = test_export_invalid_indices(src_device);
+	ret = test_export_invalid_indices(src.device_fd);
 	if (ret)
 		return ret;
 
-	close(src_device);
 	if (dst_name)
 		close(dst_device);
-	close(iommufd);
+	vfio_dev_close(&src);
 
 	printf("Success\n");
 	return 0;

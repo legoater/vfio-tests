@@ -92,9 +92,7 @@ int main(int argc, char **argv)
 {
 	const char *pf_bdf;
 	const char *vf_bdf;
-	int pf_device = -1;
-	int pf_iommufd = -1;
-	int pf_ioas_id;
+	struct vfio_dev pf = VFIO_DEV_INIT;
 	int ret;
 
 	if (argc < 2) {
@@ -114,26 +112,16 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	pf_iommufd = open("/dev/iommu", O_RDWR);
-	if (pf_iommufd < 0) {
-		printf("Failed to open /dev/iommu: %d (%s)\n",
-		       errno, strerror(errno));
+	if (vfio_dev_open(&pf, pf_bdf))
 		return -1;
-	}
 
-	if (vfio_device_iommufd_attach(pf_iommufd, pf_bdf, &pf_device,
-				       &pf_ioas_id)) {
-		return -1;
-	}
-
-	if (set_vf_token(pf_device, VF_TOKEN))
+	if (set_vf_token(pf.device_fd, VF_TOKEN))
 		return -1;
 
 	printf("VF token successfully assigned to PF\n");
 
 	/* Close PF VFIO device fd to check token persistence */
-	close(pf_device);
-	close(pf_iommufd);
+	vfio_dev_close(&pf);
 
 	if (vf_bdf) {
 		/* Now, open the VF using the token assigned to its PF. */
