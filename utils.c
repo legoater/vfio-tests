@@ -690,6 +690,30 @@ int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length)
 	return fd;
 }
 
+int vfio_dev_map_dmabuf(struct vfio_dev *dev, int dmabuf_fd,
+			uint64_t length, uint64_t *iova_out)
+{
+	struct iommu_ioas_map_file map_file = {
+		.size = sizeof(map_file),
+		.flags = IOMMU_IOAS_MAP_READABLE | IOMMU_IOAS_MAP_WRITEABLE,
+		.ioas_id = dev->ioas_id,
+		.fd = dmabuf_fd,
+		.length = length,
+	};
+
+	if (ioctl(dev->iommufd, IOMMU_IOAS_MAP_FILE, &map_file) < 0) {
+		fprintf(stderr, "%s: IOMMU_IOAS_MAP_FILE: %s\n",
+			__func__, strerror(errno));
+		return -1;
+	}
+
+	if (iova_out)
+		*iova_out = map_file.iova;
+	printf("dmabuf mapped at IOVA 0x%" PRIx64 " (size 0x%" PRIx64 ")\n",
+	       (uint64_t)map_file.iova, length);
+	return 0;
+}
+
 #define ALIGN_UP(x, a)  (((x) + (a) - 1) & ~((a) - 1))
 
 void *mmap_align(void *addr, size_t length, int prot, int flags,

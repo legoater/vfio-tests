@@ -23,15 +23,15 @@
 
 #include "utils.h"
 
-static int test_export_bars(int src_device, int iommufd,
+static int test_export_bars(int src_device, struct vfio_dev *dst,
 			    const char *src_name, const char *dst_name,
-			    int dst_ioas, int bar_conflict)
+			    int bar_conflict)
 {
 	struct vfio_region_info region_info = { .argsz = sizeof(region_info) };
 	int i, ret;
 
 	printf("\nExporting %s BARs as dma-buf, mapping into %s ioas %d\n\n",
-	       src_name, dst_name ? dst_name : src_name, dst_ioas);
+	       src_name, dst_name ? dst_name : src_name, dst->ioas_id);
 
 	for (i = 0; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
 		int dmabuf_fd;
@@ -78,27 +78,11 @@ static int test_export_bars(int src_device, int iommufd,
 			munmap(map, (size_t)region_info.size);
 		}
 
-		struct iommu_ioas_map_file map_file = {
-			.size = sizeof(map_file),
-			.flags = IOMMU_IOAS_MAP_READABLE |
-				 IOMMU_IOAS_MAP_WRITEABLE,
-			.ioas_id = dst_ioas,
-			.fd = dmabuf_fd,
-			.length = region_info.size,
-		};
-		ret = ioctl(iommufd, IOMMU_IOAS_MAP_FILE, &map_file);
-		if (ret < 0) {
-			printf("\tFailed IOMMU_IOAS_MAP_FILE %d (%s)\n",
-			       ret, strerror(errno));
-			close(dmabuf_fd);
-			continue;
-		}
-
-		printf("\tmapped in %s ioas %d at IOVA 0x%llx size 0x%lx\n",
-		       dst_name ? dst_name : src_name, dst_ioas,
-		       (unsigned long long)map_file.iova,
-		       (unsigned long)region_info.size);
+		ret = vfio_dev_map_dmabuf(dst, dmabuf_fd,
+					  region_info.size, NULL);
 		close(dmabuf_fd);
+		if (ret < 0)
+			continue;
 	}
 
 	return 0;
@@ -144,8 +128,8 @@ int main(int argc, char **argv)
 {
 	const char *src_name, *dst_name = NULL;
 	struct vfio_dev src = VFIO_DEV_INIT;
-	int opt, dst_device, ret;
-	int dst_ioas;
+	struct vfio_dev dst = VFIO_DEV_INIT;
+	int opt, ret;
 	int bar_conflict = -1;
 	struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
 
@@ -178,12 +162,12 @@ int main(int argc, char **argv)
 		return EXIT_SKIP;
 
 	if (dst_name) {
+		dst.iommufd = src.iommufd;
 		if (vfio_device_iommufd_attach(src.iommufd, dst_name,
-					       &dst_device, &dst_ioas))
+					       &dst.device_fd, &dst.ioas_id))
 			return 1;
 	} else {
-		dst_device = src.device_fd;
-		dst_ioas = src.ioas_id;
+		dst = src;
 	}
 
 	ret = ioctl(src.device_fd, VFIO_DEVICE_GET_INFO, &device_info);
@@ -192,8 +176,8 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	ret = test_export_bars(src.device_fd, src.iommufd, src_name, dst_name,
-			       dst_ioas, bar_conflict);
+	ret = test_export_bars(src.device_fd, &dst, src_name, dst_name,
+			       bar_conflict);
 	if (ret)
 		return ret;
 
@@ -202,7 +186,7 @@ int main(int argc, char **argv)
 		return ret;
 
 	if (dst_name)
-		close(dst_device);
+		close(dst.device_fd);
 	vfio_dev_close(&src);
 
 	printf("Success\n");

@@ -118,6 +118,8 @@ struct vfio_device_feature_dma_buf {
 
 int vfio_dev_probe_dmabuf(int device_fd);
 int vfio_dev_export_bar_dmabuf(int device_fd, int bar_index, uint64_t length);
+int vfio_dev_map_dmabuf(struct vfio_dev *dev, int dmabuf_fd,
+			uint64_t length, uint64_t *iova_out);
 
 static inline const char *size_str(unsigned long size, char *buf, size_t len)
 {
