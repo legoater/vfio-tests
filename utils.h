@@ -96,6 +96,7 @@ struct vfio_dev {
 
 int vfio_dev_open(struct vfio_dev *dev, const char *bdf);
 void vfio_dev_close(struct vfio_dev *dev);
+int vfio_dev_dump_iova_ranges(struct vfio_dev *dev);
 
 /*
  * VFIO DMA-BUF BAR export (IOMMUFD)

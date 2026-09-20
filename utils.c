@@ -641,6 +641,46 @@ void vfio_dev_close(struct vfio_dev *dev)
 		close(dev->iommufd);
 }
 
+int vfio_dev_dump_iova_ranges(struct vfio_dev *dev)
+{
+	struct iommu_ioas_iova_ranges ranges = {
+		.size = sizeof(ranges),
+		.ioas_id = dev->ioas_id,
+	};
+	struct iommu_iova_range *iovars;
+	unsigned int i;
+
+	if (ioctl(dev->iommufd, IOMMU_IOAS_IOVA_RANGES, &ranges) < 0 &&
+	    errno != EMSGSIZE) {
+		fprintf(stderr, "%s: IOMMU_IOAS_IOVA_RANGES: %s\n",
+			dev->name, strerror(errno));
+		return -1;
+	}
+
+	iovars = calloc(ranges.num_iovas, sizeof(*iovars));
+	if (!iovars)
+		return -1;
+
+	ranges.allowed_iovas = (uintptr_t)iovars;
+
+	if (ioctl(dev->iommufd, IOMMU_IOAS_IOVA_RANGES, &ranges) < 0) {
+		fprintf(stderr, "%s: IOMMU_IOAS_IOVA_RANGES: %s\n",
+			dev->name, strerror(errno));
+		free(iovars);
+		return -1;
+	}
+
+	printf("%s: allowed IOVA ranges (ioas %d, alignment 0x%" PRIx64 "):\n",
+	       dev->name, dev->ioas_id, (uint64_t)ranges.out_iova_alignment);
+
+	for (i = 0; i < ranges.num_iovas; i++)
+		printf("  [0x%" PRIx64 " - 0x%" PRIx64 "]\n",
+		       (uint64_t)iovars[i].start, (uint64_t)iovars[i].last);
+
+	free(iovars);
+	return 0;
+}
+
 int vfio_dev_probe_dmabuf(struct vfio_dev *dev)
 {
 	struct vfio_device_feature probe = {

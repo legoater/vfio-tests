@@ -170,6 +170,10 @@ int main(int argc, char **argv)
 		dst = src;
 	}
 
+	vfio_dev_dump_iova_ranges(&src);
+	if (dst_name)
+		vfio_dev_dump_iova_ranges(&dst);
+
 	ret = ioctl(src.device_fd, VFIO_DEVICE_GET_INFO, &device_info);
 	if (ret) {
 		printf("Failed to get device info\n");
