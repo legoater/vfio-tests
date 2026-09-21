@@ -640,6 +640,8 @@ void vfio_dev_close(struct vfio_dev *dev)
 
 	vfio_dev_msix_disable(dev);
 
+	vfio_dev_dma_free(dev);
+
 	for (i = 0; i < VFIO_PCI_NUM_BARS; i++)
 		if (dev->bar[i].addr && dev->bar[i].addr != MAP_FAILED)
 			munmap(dev->bar[i].addr, dev->bar[i].size);
@@ -690,6 +692,77 @@ int vfio_dev_map_bar(struct vfio_dev *dev, int index)
 	printf("%s: BAR%d mapped at %p\n",
 	       dev->name, index, dev->bar[index].addr);
 	return 0;
+}
+
+int vfio_dev_dma_alloc(struct vfio_dev *dev, size_t size, uint64_t iova)
+{
+	struct iommu_ioas_map map = {
+		.size = sizeof(map),
+		.ioas_id = dev->ioas_id,
+		.flags = IOMMU_IOAS_MAP_READABLE | IOMMU_IOAS_MAP_WRITEABLE |
+			 IOMMU_IOAS_MAP_FIXED_IOVA,
+		.iova = iova,
+	};
+
+	size = ALIGN_UP(size, sysconf(_SC_PAGESIZE));
+
+	dev->dma_va = mmap(NULL, size, PROT_READ | PROT_WRITE,
+			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (dev->dma_va == MAP_FAILED) {
+		fprintf(stderr, "%s: mmap: %s\n", __func__, strerror(errno));
+		return -1;
+	}
+
+	map.user_va = (uintptr_t)dev->dma_va;
+	map.length = size;
+
+	if (ioctl(dev->iommufd, IOMMU_IOAS_MAP, &map)) {
+		fprintf(stderr, "%s: IOMMU_IOAS_MAP: %s\n",
+			__func__, strerror(errno));
+		munmap(dev->dma_va, size);
+		dev->dma_va = NULL;
+		return -1;
+	}
+
+	dev->dma_size = size;
+	dev->dma_iova = iova;
+	return 0;
+}
+
+void vfio_dev_dma_free(struct vfio_dev *dev)
+{
+	struct iommu_ioas_unmap unmap = {
+		.size = sizeof(unmap),
+		.ioas_id = dev->ioas_id,
+		.iova = dev->dma_iova,
+		.length = dev->dma_size,
+	};
+
+	if (!dev->dma_va)
+		return;
+
+	if (ioctl(dev->iommufd, IOMMU_IOAS_UNMAP, &unmap))
+		fprintf(stderr, "%s: IOMMU_IOAS_UNMAP: %s\n",
+			__func__, strerror(errno));
+
+	munmap(dev->dma_va, dev->dma_size);
+	dev->dma_va = NULL;
+	dev->dma_size = 0;
+	dev->dma_iova = 0;
+}
+
+uint64_t vfio_dev_to_iova(struct vfio_dev *dev, void *va)
+{
+	size_t offset = (uint8_t *)va - (uint8_t *)dev->dma_va;
+
+	if (offset >= dev->dma_size) {
+		fprintf(stderr, "%s: VA %p out of DMA range [%p, %p)\n",
+			__func__, va, dev->dma_va,
+			(uint8_t *)dev->dma_va + dev->dma_size);
+		abort();
+	}
+
+	return dev->dma_iova + offset;
 }
 
 uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off)

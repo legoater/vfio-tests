@@ -102,6 +102,10 @@ struct vfio_dev {
 
 	struct vfio_bar bar[VFIO_PCI_NUM_BARS];
 
+	void *dma_va;
+	size_t dma_size;
+	uint64_t dma_iova;
+
 	int msix_fd;
 };
 
@@ -111,6 +115,9 @@ int vfio_dev_open(struct vfio_dev *dev, const char *bdf);
 void vfio_dev_close(struct vfio_dev *dev);
 int vfio_dev_dump_iova_ranges(struct vfio_dev *dev);
 int vfio_dev_map_bar(struct vfio_dev *dev, int index);
+int vfio_dev_dma_alloc(struct vfio_dev *dev, size_t size, uint64_t iova);
+void vfio_dev_dma_free(struct vfio_dev *dev);
+uint64_t vfio_dev_to_iova(struct vfio_dev *dev, void *va);
 
 uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off);
 void vfio_dev_reg_write(struct vfio_dev *dev, uint32_t off, uint32_t val);
