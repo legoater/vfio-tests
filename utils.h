@@ -12,6 +12,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 /*
@@ -86,11 +87,20 @@ int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val);
 /*
  * VFIO PCI device abstraction (IOMMUFD cdev path)
  */
+#define VFIO_PCI_NUM_BARS 6
+
+struct vfio_bar {
+	void *addr;
+	size_t size;
+};
+
 struct vfio_dev {
 	const char *name;
 	int device_fd;
 	int iommufd;
 	int ioas_id;
+
+	struct vfio_bar bar[VFIO_PCI_NUM_BARS];
 
 	int msix_fd;
 };
@@ -100,6 +110,10 @@ struct vfio_dev {
 int vfio_dev_open(struct vfio_dev *dev, const char *bdf);
 void vfio_dev_close(struct vfio_dev *dev);
 int vfio_dev_dump_iova_ranges(struct vfio_dev *dev);
+int vfio_dev_map_bar(struct vfio_dev *dev, int index);
+
+uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off);
+void vfio_dev_reg_write(struct vfio_dev *dev, uint32_t off, uint32_t val);
 
 /*
  * VFIO DMA-BUF BAR export (IOMMUFD)

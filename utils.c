@@ -636,13 +636,80 @@ int vfio_dev_open(struct vfio_dev *dev, const char *bdf)
 
 void vfio_dev_close(struct vfio_dev *dev)
 {
+	int i;
+
 	vfio_dev_msix_disable(dev);
+
+	for (i = 0; i < VFIO_PCI_NUM_BARS; i++)
+		if (dev->bar[i].addr && dev->bar[i].addr != MAP_FAILED)
+			munmap(dev->bar[i].addr, dev->bar[i].size);
 
 	if (dev->device_fd >= 0)
 		close(dev->device_fd);
 
 	if (dev->iommufd >= 0)
 		close(dev->iommufd);
+}
+
+int vfio_dev_map_bar(struct vfio_dev *dev, int index)
+{
+	struct vfio_region_info reg = {
+		.argsz = sizeof(reg),
+		.index = index,
+	};
+
+	if (index < 0 || index >= VFIO_PCI_NUM_BARS) {
+		fprintf(stderr, "%s: BAR index %d out of range\n",
+			__func__, index);
+		return -1;
+	}
+
+	if (ioctl(dev->device_fd, VFIO_DEVICE_GET_REGION_INFO, &reg) < 0) {
+		fprintf(stderr, "%s: VFIO_DEVICE_GET_REGION_INFO(BAR%d): %s\n",
+			__func__, index, strerror(errno));
+		return -1;
+	}
+
+	printf("%s: BAR%d info: offset=0x%" PRIx64
+	       " size=0x%" PRIx64 " flags=0x%x\n",
+	       dev->name, index, (uint64_t)reg.offset,
+	       (uint64_t)reg.size, reg.flags);
+
+	dev->bar[index].size = reg.size;
+
+	dev->bar[index].addr = mmap(NULL, reg.size,
+				    PROT_READ | PROT_WRITE,
+				    MAP_SHARED, dev->device_fd,
+				    reg.offset);
+	if (dev->bar[index].addr == MAP_FAILED) {
+		fprintf(stderr, "%s: mmap BAR%d: %s\n",
+			__func__, index, strerror(errno));
+		return -1;
+	}
+
+	printf("%s: BAR%d mapped at %p\n",
+	       dev->name, index, dev->bar[index].addr);
+	return 0;
+}
+
+uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off)
+{
+	if (off + sizeof(uint32_t) > dev->bar[0].size) {
+		fprintf(stderr, "%s: BAR0 register out of range: 0x%x\n",
+			__func__, off);
+		exit(EXIT_FAILURE);
+	}
+	return *(volatile uint32_t *)((uint8_t *)dev->bar[0].addr + off);
+}
+
+void vfio_dev_reg_write(struct vfio_dev *dev, uint32_t off, uint32_t val)
+{
+	if (off + sizeof(uint32_t) > dev->bar[0].size) {
+		fprintf(stderr, "%s: BAR0 register out of range: 0x%x\n",
+			__func__, off);
+		exit(EXIT_FAILURE);
+	}
+	*(volatile uint32_t *)((uint8_t *)dev->bar[0].addr + off) = val;
 }
 
 int vfio_dev_dump_iova_ranges(struct vfio_dev *dev)
