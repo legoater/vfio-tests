@@ -1,6 +1,6 @@
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -I.
 SHARED_SRCS = utils.c
-HEADERS = utils.h
+HEADERS = utils.h drivers/igb.h
 TEST_SRCS = \
 	vfio-correctness-tests.c \
 	vfio-huge-guest-test.c \
@@ -21,6 +21,7 @@ TEST_SRCS = \
 	iommufd-dma-map-unmap.c \
 	iommufd-dmabuf.c \
 	iommufd-pci-vf-token.c \
+	igb-tx-rx.c \
 	vfio-pci-device-migration.c \
 	vfio-pci-device-migration-stress.c \
 	vfio-pci-device-map-alignment.c \
@@ -45,6 +46,8 @@ all: $(TEST_BINS) bar-conflict
 $(TEST_BINS): %: %.o $(SHARED_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
+igb-tx-rx: drivers/igb.o
+
 bar-conflict:
 	$(MAKE) -C bar-conflict
 
@@ -56,7 +59,7 @@ vfio-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
 iommufd-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
 
 clean:
-	rm -f $(SHARED_OBJS) $(TEST_SRCS:.c=.o) $(TEST_BINS) $(ARCHIVE_BASE_NAME)*.tar.gz run-test.log
+	rm -f $(SHARED_OBJS) $(TEST_SRCS:.c=.o) drivers/igb.o $(TEST_BINS) $(ARCHIVE_BASE_NAME)*.tar.gz run-test.log
 	$(MAKE) -C bar-conflict clean
 
 DEVICE ?=

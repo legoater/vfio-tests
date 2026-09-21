@@ -24,5 +24,6 @@ vfio-pci-device-migration-stress
 vfio-pci-device-map-alignment
 vfio-pci-bar-fault-timing
 vfio-pci-vf-token
+igb-tx-rx
 run-test.log
 .vscode

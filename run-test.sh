@@ -122,6 +122,9 @@ run_test ./vfio-pci-hot-reset $device
 run_test ./vfio-pci-device-migration $device
 run_test ./vfio-pci-device-migration-stress $device
 
+# igb NIC tests (iommufd cdev)
+run_test ./igb-tx-rx -l $device
+
 echo ""
 total=$((pass + fail + skip))
 echo "$total tests: $pass passed, $fail failed, $skip skipped"

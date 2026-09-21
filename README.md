@@ -51,6 +51,7 @@ Set `VFIO_VERBOSE=1` for detailed output.
 | `vfio-pci-device-config-access` | PCI config space access: header, capabilities, write/readback |
 | `vfio-pci-device-migration` | Query device migration and dirty tracking capabilities |
 | `vfio-pci-device-migration-stress` | Migration state cycle stress test (iommufd) |
+| `igb-tx-rx` | Intel 82576/i350 (igb) TX/RX DMA test (iommufd) |
 | `iova-stress.sh` | IOVA stress test across large address ranges (default 45TB) |
 
 ## Tools
