@@ -197,6 +197,22 @@ unsigned int vfio_pci_vendor(const char *devname)
 	return vendor;
 }
 
+unsigned int vfio_pci_device(const char *devname)
+{
+	char path[PATH_MAX];
+	FILE *f;
+	unsigned int device = 0;
+
+	snprintf(path, sizeof(path),
+		 "/sys/bus/pci/devices/%s/device", devname);
+	f = fopen(path, "r");
+	if (!f)
+		return 0;
+	fscanf(f, "%x", &device);
+	fclose(f);
+	return device;
+}
+
 const char *pci_sysfs_attr(const char *devname, const char *attr,
 			   char *buf, size_t len)
 {

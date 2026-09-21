@@ -64,6 +64,7 @@ int vfio_device_get_groupid(const char *devname);
 int vfio_group_open(int groupid, bool noiommu);
 long hugepages_free(void);
 unsigned int vfio_pci_vendor(const char *devname);
+unsigned int vfio_pci_device(const char *devname);
 const char *pci_sysfs_attr(const char *devname, const char *attr,
 			   char *buf, size_t len);
 
