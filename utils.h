@@ -119,6 +119,7 @@ int vfio_dev_map_bar(struct vfio_dev *dev, int index);
 int vfio_dev_dma_alloc(struct vfio_dev *dev, size_t size, uint64_t iova);
 void vfio_dev_dma_free(struct vfio_dev *dev);
 uint64_t vfio_dev_to_iova(struct vfio_dev *dev, void *va);
+int vfio_dev_set_bus_master(struct vfio_dev *dev, bool enable);
 
 uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off);
 void vfio_dev_reg_write(struct vfio_dev *dev, uint32_t off, uint32_t val);

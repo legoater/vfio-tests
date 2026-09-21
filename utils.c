@@ -781,6 +781,36 @@ uint64_t vfio_dev_to_iova(struct vfio_dev *dev, void *va)
 	return dev->dma_iova + offset;
 }
 
+int vfio_dev_set_bus_master(struct vfio_dev *dev, bool enable)
+{
+	struct vfio_region_info reg = {
+		.argsz = sizeof(reg),
+		.index = VFIO_PCI_CONFIG_REGION_INDEX,
+	};
+	uint16_t cmd;
+
+	if (ioctl(dev->device_fd, VFIO_DEVICE_GET_REGION_INFO, &reg) < 0) {
+		fprintf(stderr, "%s: VFIO_DEVICE_GET_REGION_INFO: %s\n",
+			__func__, strerror(errno));
+		return -1;
+	}
+
+	if (pci_cfg_read16(dev->device_fd, reg.offset,
+			   PCI_COMMAND, &cmd))
+		return -1;
+
+	if (enable)
+		cmd |= PCI_COMMAND_MASTER;
+	else
+		cmd &= ~PCI_COMMAND_MASTER;
+
+	if (pci_cfg_write16(dev->device_fd, reg.offset,
+			    PCI_COMMAND, cmd))
+		return -1;
+
+	return 0;
+}
+
 uint32_t vfio_dev_reg_read(struct vfio_dev *dev, uint32_t off)
 {
 	if (off + sizeof(uint32_t) > dev->bar[0].size) {
