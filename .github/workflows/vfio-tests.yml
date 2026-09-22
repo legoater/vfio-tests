@@ -9,6 +9,8 @@ env:
   VM_PORT: "2222"
   IGB_ADDR: "0x03"
   IGB_BDF: "0000:00:03.0"
+  TESTDEV_ADDR: "0x0C"
+  TESTDEV_BDF: "0000:00:0c.0"
 
 jobs:
   test:
@@ -96,6 +98,7 @@ jobs:
             -device virtio-net-pci,netdev=mgmt \
             -netdev user,id=igbnet \
             -device igb,netdev=igbnet,addr=$IGB_ADDR \
+            -device pci-testdev,membar=32G,addr=$TESTDEV_ADDR \
             -display none \
             -serial file:serial.log \
             -monitor none \
@@ -142,11 +145,29 @@ jobs:
           ssh $SSH_OPTS -i ssh_key -p $VM_PORT test@localhost \
             "cd ~/vfio-tests && sudo ./run-test.sh $IGB_BDF"
 
+      - name: Bind pci-testdev to vfio-pci
+        run: |
+          ssh $SSH_OPTS -i ssh_key -p $VM_PORT test@localhost "sudo bash -s" <<SCRIPT
+          set -ex
+          echo "$TESTDEV_BDF" > /sys/bus/pci/devices/$TESTDEV_BDF/driver/unbind 2>/dev/null || true
+          echo "vfio-pci" > /sys/bus/pci/devices/$TESTDEV_BDF/driver_override
+          echo "$TESTDEV_BDF" > /sys/bus/pci/drivers_probe
+          readlink /sys/bus/pci/devices/$TESTDEV_BDF/driver
+          SCRIPT
+
+      - name: Run THP test
+        run: |
+          ssh $SSH_OPTS -i ssh_key -p $VM_PORT test@localhost \
+            "cd ~/vfio-tests && sudo ./thp-boot-time.sh $TESTDEV_BDF &> thp-boot-time.log"
+
       - name: Collect logs
         if: always()
         run: |
           scp $SSH_OPTS -i ssh_key -P $VM_PORT \
             test@localhost:~/vfio-tests/run-test.log ./run-test.log 2>/dev/null || true
+          scp $SSH_OPTS -i ssh_key -P $VM_PORT \
+            test@localhost:~/vfio-tests/thp-boot-time.log ./thp-boot-time.log 2>/dev/null || true
+
           ssh $SSH_OPTS -i ssh_key -p $VM_PORT test@localhost \
             "sudo dmesg" > vm-dmesg.log 2>/dev/null || true
 
@@ -157,6 +178,7 @@ jobs:
           name: test-results
           path: |
             run-test.log
+            thp-boot-time.log
             serial.log
             vm-dmesg.log
 
