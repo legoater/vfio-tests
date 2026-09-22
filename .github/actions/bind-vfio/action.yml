@@ -1,0 +1,20 @@
+# .github/actions/bind-vfio/action.yml
+name: 'Bind PCI to VFIO'
+description: 'Unbinds a PCI device and binds it to vfio-pci over SSH'
+inputs:
+  bdf:
+    description: 'Device BDF value'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        ssh $SSH_OPTS -i ssh_key -p $VM_PORT test@localhost "sudo bash -s" <<SCRIPT
+        set -ex
+        echo "${{ inputs.bdf }}" > /sys/bus/pci/devices/${{ inputs.bdf }}/driver/unbind 2>/dev/null || true
+        echo "vfio-pci" > /sys/bus/pci/devices/${{ inputs.bdf }}/driver_override
+        echo "${{ inputs.bdf }}" > /sys/bus/pci/drivers_probe
+        readlink /sys/bus/pci/devices/${{ inputs.bdf }}/driver
+        SCRIPT
