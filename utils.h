@@ -90,9 +90,11 @@ struct vfio_dev {
 	int device_fd;
 	int iommufd;
 	int ioas_id;
+
+	int msix_fd;
 };
 
-#define VFIO_DEV_INIT { .device_fd = -1, .iommufd = -1 }
+#define VFIO_DEV_INIT { .device_fd = -1, .iommufd = -1, .msix_fd = -1 }
 
 int vfio_dev_open(struct vfio_dev *dev, const char *bdf);
 void vfio_dev_close(struct vfio_dev *dev);
@@ -129,6 +131,9 @@ int vfio_pci_irq_trigger(int device, int index, int start, int count);
 int vfio_pci_irq_unmask(int device, int index, int start, int count);
 int vfio_pci_irq_disable(int device, int index);
 int eventfd_check(int fd, int timeout_ms);
+
+int vfio_dev_msix_enable(struct vfio_dev *dev, unsigned int nr_vectors);
+void vfio_dev_msix_disable(struct vfio_dev *dev);
 
 int vfio_dev_probe_dmabuf(struct vfio_dev *dev);
 int vfio_dev_export_bar_dmabuf(struct vfio_dev *dev, int bar_index,

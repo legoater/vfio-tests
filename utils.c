@@ -636,6 +636,8 @@ int vfio_dev_open(struct vfio_dev *dev, const char *bdf)
 
 void vfio_dev_close(struct vfio_dev *dev)
 {
+	vfio_dev_msix_disable(dev);
+
 	if (dev->device_fd >= 0)
 		close(dev->device_fd);
 
@@ -843,6 +845,40 @@ int vfio_dev_map_dmabuf(struct vfio_dev *dev, int dmabuf_fd,
 	printf("%s: dmabuf fd %d mapped at IOVA 0x%" PRIx64 " (size 0x%" PRIx64 ")\n",
 	       dev->name, dmabuf_fd, (uint64_t)map_file.iova, length);
 	return 0;
+}
+
+int vfio_dev_msix_enable(struct vfio_dev *dev, unsigned int nr_vectors)
+{
+	int efd;
+
+	efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (efd < 0) {
+		fprintf(stderr, "%s: eventfd: %s\n", __func__, strerror(errno));
+		return -1;
+	}
+
+	if (vfio_pci_irq_set_eventfd(dev->device_fd, VFIO_PCI_MSIX_IRQ_INDEX,
+				     0, nr_vectors, &efd)) {
+		fprintf(stderr, "%s: MSI-X enable failed: %s\n",
+			dev->name, strerror(errno));
+		close(efd);
+		return -1;
+	}
+
+	dev->msix_fd = efd;
+	printf("%s: MSI-X enabled (%u vector%s, eventfd %d)\n",
+	       dev->name, nr_vectors, nr_vectors > 1 ? "s" : "", efd);
+	return 0;
+}
+
+void vfio_dev_msix_disable(struct vfio_dev *dev)
+{
+	if (dev->msix_fd < 0)
+		return;
+
+	vfio_pci_irq_disable(dev->device_fd, VFIO_PCI_MSIX_IRQ_INDEX);
+	close(dev->msix_fd);
+	dev->msix_fd = -1;
 }
 
 #define ALIGN_UP(x, a)  (((x) + (a) - 1) & ~((a) - 1))
