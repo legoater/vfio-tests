@@ -77,6 +77,7 @@ int pci_cfg_write16(int device, uint64_t cfg_offset, int offset, uint16_t val);
 
 #define EXIT_SKIP 77
 
+#define ALIGN_UP(x, a)	(((x) + (a) - 1) & ~((a) - 1))
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 #define NSEC_PER_MSEC (NSEC_PER_SEC / 1000)

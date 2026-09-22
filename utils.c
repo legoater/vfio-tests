@@ -881,8 +881,6 @@ void vfio_dev_msix_disable(struct vfio_dev *dev)
 	dev->msix_fd = -1;
 }
 
-#define ALIGN_UP(x, a)  (((x) + (a) - 1) & ~((a) - 1))
-
 void *mmap_align(void *addr, size_t length, int prot, int flags,
 		 int fd, off_t offset, size_t align)
 {
