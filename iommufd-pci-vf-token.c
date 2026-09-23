@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 	pf_bdf = argv[1];
 	if (vfio_pci_is_vf(pf_bdf)) {
 		printf("%s is a VF, expected a PF\n", pf_bdf);
-		return -1;
+		return EXIT_SKIP;
 	}
 
 	vf_bdf = argv[2];
