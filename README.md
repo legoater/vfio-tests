@@ -53,6 +53,7 @@ Set `VFIO_VERBOSE=1` for detailed output.
 | `vfio-pci-device-migration-stress` | Migration state cycle stress test (iommufd) |
 | `igb-tx-rx` | Intel 82576/i350 (igb) TX/RX DMA test (iommufd) |
 | `iova-stress.sh` | IOVA stress test across large address ranges (default 45TB) |
+| `thp-boot-time.sh` | Transparent hugepage boot-time test for VFIO DMA mapping (BAR >= 32GiB) |
 
 ## Tools
 

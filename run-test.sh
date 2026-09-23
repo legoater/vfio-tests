@@ -125,6 +125,9 @@ run_test ./vfio-pci-device-migration-stress $device
 # igb NIC tests (iommufd cdev)
 run_test ./igb-tx-rx -l $device
 
+# THP boot time
+run_test ./thp-boot-time.sh $device
+
 echo ""
 total=$((pass + fail + skip))
 echo "$total tests: $pass passed, $fail failed, $skip skipped"
