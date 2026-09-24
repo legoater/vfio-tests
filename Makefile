@@ -29,7 +29,7 @@ TEST_SRCS = \
 
 SHARED_OBJS = $(SHARED_SRCS:.c=.o)
 TEST_BINS = $(TEST_SRCS:.c=)
-ARCHIVE_BASE_NAME = vfio-tests
+NAME = vfio-tests
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null)
 GIT_DIRTY := $(shell git diff --quiet 2>/dev/null || echo "-dirty")
 ifeq ($(GIT_SHA),)
@@ -37,7 +37,11 @@ ifeq ($(GIT_SHA),)
 else
   GIT_VERSION = $(GIT_SHA)$(GIT_DIRTY)
 endif
-ARCHIVE_NAME = $(ARCHIVE_BASE_NAME)-$(GIT_VERSION)
+ARCHIVE_NAME = $(NAME)-$(GIT_VERSION)
+
+RPMBUILD := $(CURDIR)/.rpmbuild
+PREFIX = $(NAME)-$(GIT_SHA)/
+DIST_TAR = $(NAME)-$(GIT_SHA)-src.tar.gz
 
 .PHONY: all clean archive bar-conflict
 
@@ -59,20 +63,23 @@ vfio-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
 iommufd-pci-vf-token: CFLAGS += -DVF_TOKEN=\"$(VF_TOKEN)\"
 
 clean:
-	rm -f $(SHARED_OBJS) $(TEST_SRCS:.c=.o) drivers/igb.o $(TEST_BINS) $(ARCHIVE_BASE_NAME)*.tar.gz run-test.log
+	rm -f $(SHARED_OBJS) $(TEST_SRCS:.c=.o) drivers/igb.o $(TEST_BINS) $(NAME)*.tar.gz run-test.log
+	rm -rf $(RPMBUILD)
 	$(MAKE) -C bar-conflict clean
 
 DEVICE ?=
 check:
 	./run-test.sh $(DEVICE)
 
-archive:
-	tar -czvf $(ARCHIVE_NAME).tar.gz Makefile $(SHARED_SRCS) $(TEST_SRCS) $(HEADERS) run-test.sh
+dist:
+	git archive --format=tar.gz --prefix=$(PREFIX) -o $(DIST_TAR) HEAD
 
-bindist: all
-	mkdir -p $(ARCHIVE_NAME)
-	cp $(TEST_BINS) run-test.sh $(ARCHIVE_NAME)/
-	tar -czvf $(ARCHIVE_NAME)-bin.tar.gz $(ARCHIVE_NAME)/
-	rm -rf $(ARCHIVE_NAME)
+dist-rpm: dist
+	rpmbuild -ba vfio-tests.spec \
+		--define "_topdir $(RPMBUILD)" \
+		--define "_sourcedir $(CURDIR)"
+	@echo "---"
+	@ls $(RPMBUILD)/RPMS/*/$(NAME)-*.rpm
+	@ls $(RPMBUILD)/SRPMS/$(NAME)-*.src.rpm
 
 .PRECIOUS: $(TEST_BINS)
