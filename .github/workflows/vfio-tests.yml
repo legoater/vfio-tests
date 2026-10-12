@@ -4,7 +4,7 @@ on:
   push
 
 env:
-  FEDORA_IMAGE_URL: "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2"
+  FEDORA_IMAGE_URL: "https://kojipkgs.fedoraproject.org/compose/branched/Fedora-45-20261006.n.0/compose/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-45-20261006.n.0.x86_64.qcow2"
   SSH_OPTS: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o ConnectTimeout=10 -o LogLevel=ERROR"
   VM_PORT: "2222"
   IGB_ADDR: "0x03"
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: fedora-base.qcow2
-          key: fedora-cloud-44-x86_64-v1
+          key: fedora-cloud-45-x86_64-20261006
 
       - name: Download Fedora cloud image
         if: steps.cache-image.outputs.cache-hit != 'true'
